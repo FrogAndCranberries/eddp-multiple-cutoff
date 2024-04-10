@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 0 ]; then
+    echo 1>&2 "Usage: castepsplit2res takes input from stdin"
+    exit 127
+fi
+
+tmpfile=$(mktemp -u /tmp/XXXXXXXXX-)
+
+csplit  --suffix-format="%d.castep" --elide-empty-files - -s -z -f $tmpfile '/^Total time/+1' '{*}'
+
+for f in `ls $tmpfile* 2> /dev/null` ; do
+    label=${f##*/}
+    castep2res ${f%.*}
+done
+
+
+exit 0

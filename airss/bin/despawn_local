@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -e
+
+# Check no arguments were passed
+if [ $# -ne 0 ]; then
+    echo 'despawn takes no arguments'
+    exit 1
+fi
+
+# Keep iterating over all .spawnpids.* files while any exist
+while [[ `ls .spawnpids.* 2> /dev/null | wc -l` -gt 0 ]]
+do
+
+   for sp in .spawnpids.*
+   do
+   
+      read host pid < $sp
+
+      # Terminate the group of processes for each spawn pid
+      pgid=`ps -o pgid= $pid` && pkill -9 -g $pgid < /dev/null >& /dev/null & rm $sp &
+
+   done
+
+   wait
+
+done
+
+exit 0
+

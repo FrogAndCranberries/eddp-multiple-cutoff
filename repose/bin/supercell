@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -e
+#set -v
+
+if [ $# -lt 4 ]; then
+  echo 'supercell <natoms> <pressure> <nopt> <seed>'
+  exit 1
+fi
+
+natoms=$1
+pressure=$2
+nopt=$3
+seed=$4
+
+cabal res res < $seed.res | cabal res cell > $seed-wobble.cell
+#cp $seed.eddp $seed-wobble.eddp
+wobble -dryrun -q -natom $natoms $seed-wobble 2>/dev/null
+
+clatt=`head -2 $seed-wobble-out.cell | tail -1 | awk '{print $3}'`
+
+awk '{if(NR==2){print $1,$2,$3*2}else{print $0}}' $seed-wobble-out.cell | awk '{if(NF==4) {print $1,$2,$3,$4/2," # atom-"NR," % FIX"}else{print $0}}' > $seed-doubled.cell
+
+grep -v SYMM $seed-wobble-out.cell > $seed-super.cell
+
+minsep=`cryan -g < $seed.res 2>/dev/null| grep MINSEP`
+
+cabal cell res < $seed-doubled.cell | cryan -g 0 2> /dev/null | grep NUM= | sed "s/NUM=1/ XAMP=-1 YAMP=-1 ZAMP=$clatt/g" | awk '{print $1,0.00,0.00,0.75,$5,$6,$7,$8,$9,$10}' > $seed-extra.txt
+
+awk '{if($1 == "%ENDBLOCK" && $2 == "POSITIONS_FRAC"){exit}else{print $0}}' < $seed-doubled.cell > $seed-build.cell
+
+cat $seed-extra.txt >> $seed-build.cell
+echo "%ENDBLOCK POSITIONS_FRAC" >> $seed-build.cell
+echo >> $seed-build.cell
+echo "#POSAMP=0" >> $seed-build.cell
+echo "#CELLAMP=0" >> $seed-build.cell
+echo "#SLACK=0.15" >> $seed-build.cell
+echo $minsep >> $seed-build.cell
+
+buildcell < $seed-build.cell > $seed-coex.cell
+
+cabal cell res < $seed-super.cell > $seed-super.res
+
+if test -f "$seed.eddp"; then
+
+   cp $seed.eddp $seed-super.eddp
+   cp $seed.eddp $seed-coex.eddp
+
+   if [[ "$nopt" -gt 0 ]]; then
+
+      repose -p $pressure -m $nopt $seed-coex
+
+      mv $seed-coex-out.cell $seed-coex.cell
+      
+   fi
+
+fi
+
+cabal cell res < $seed-coex.cell > $seed-coex.res
+
+rm -f $seed-doubled.cell $seed-build.cell $seed-extra.txt $seed-wobble.eddp $seed-wobble.cell $seed-wobble-out.cell
+
+exit 0

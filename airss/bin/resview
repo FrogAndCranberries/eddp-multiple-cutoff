@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 1 ]; then
+    echo 1>&2 "Usage: resview <seed>"
+    exit 127
+fi
+
+if find . -name "*.res" 2> /dev/null | xargs cat 2> /dev/null | grep -q "TITL $1" ;
+then
+    rescat $1 | cabal res res 0.1 | cabal res res 0
+elif [ -f $1.castep ];
+then
+    cabal castep res < $1.castep | cabal res res 0.1 | cabal res res 0
+elif [ -f $1.cell ];
+then
+    cabal cell res < $1.cell | cabal res res 0.1 | cabal res res 0
+else
+    exit 1
+fi
+
+exit 0

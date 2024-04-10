@@ -1,0 +1,56 @@
+#!/bin/bash
+#########################################################
+# Script to perform a geometry optimistion using repose #
+#########################################################
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 3 ]; then
+         echo 1>&2 "Usage: repose_relax <exe> <nomp> <seed>"
+         exit 127
+fi
+
+###########################
+# Set the input variables #
+###########################
+
+exe=$1
+nomp=$2
+seed=$3
+
+root=${seed%%-*}
+root=${root##*\/}
+
+echo "running repose:"
+echo $exe -q -ompnp $nomp $seed
+cat $seed.par
+
+$exe -q -ompnp $nomp `cat $seed.par 2> /dev/null` $seed > $seed.rout 2> $seed.err
+
+if grep -q FAILED "$seed.rout"; then
+  exit 0 # Fail peacefully
+fi
+
+# Construct a fake Castep output file
+
+echo " Welcome to a b c repose" > $seed.castep
+(printf " Run started: at " ; date) >> $seed.castep
+(printf " from code version ";airss_version)|sed 's/AIRSS Version//g' >> $seed.castep
+echo "                          Files used for pseudopotentials:" >> $seed.castep
+md5sum $root.{pp,ppp,ddp} 2>/dev/null | awk '{print $2,"("$1")"}' >> $seed.castep
+echo >> $seed.castep
+echo "                           -------------------------------" >> $seed.castep
+
+grep Pressure: $seed.rout | tail -1 | awk '{print " *  Pressure: "$2}' >> $seed.castep
+grep Enthalpy: $seed.rout | tail -1 | awk '{print " REP: Final Enthalpy     = "$2}' >> $seed.castep
+grep Volume:   $seed.rout | tail -1 | awk '{print "Current cell volume = "$2}' >> $seed.castep
+
+# Return the key results
+
+cat $seed.rout
+
+exit 0

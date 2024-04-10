@@ -1,0 +1,52 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 5 ]; then
+    echo 1>&2 "Usage: reshake  <posamp> <cellamp> <maxatoms> <nstructures> <seed>"
+    exit 127
+fi
+
+mkdir -p shook
+
+for f in $5-*.res
+do
+
+    nat=`cat $f | grep -v "^REM" | wc -l`
+    
+    let nat=nat-5
+
+    if [ $3 -le $nat ]
+    then
+	let nsuper=1
+    else
+	let nsuper=$3/$nat
+    fi
+    
+    fseed=${f%.*}
+
+    # Make sure the unshaken structure is included
+    
+    rndstrng=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 7`
+
+    fname=$fseed-$rndstrng
+    
+    (cabal res res 0 <$f | cabal res cell && echo -e "#POSAMP=0\n#CELLAMP=0\n#MINSEP=0\n#SUPERCELL=$nsuper\n#COMPACT") | buildcell 2>/dev/null | cabal cell res | sed "s/cabal-in-out/$fname/g" > ./shook/$fname.res
+    
+    for (( n=1; n<=$4; n++ ))
+    do
+	(rndstrng=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 7`
+	
+	fname=$fseed-$rndstrng
+
+	(cabal res res 0 <$f | cabal res cell && echo -e "#POSAMP=0-$1\n#CELLAMP=0-$2\n#MINSEP=0\n#SUPERCELL=$nsuper\n#COMPACT") | buildcell 2>/dev/null | cabal cell res | sed "s/cabal-in-out/$fname/g" > ./shook/$fname.res)&
+	
+    done
+    
+done
+
+exit 0

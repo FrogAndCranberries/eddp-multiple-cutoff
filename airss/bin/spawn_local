@@ -1,0 +1,61 @@
+#!/bin/bash
+
+#==================================================================================#
+#                                      spawn                                       #
+#==================================================================================#
+#                                                                                  #
+# This file is part of the AIRSS structure prediction package.                     #
+#                                                                                  #
+# AIRSS is free software; you can redistribute it and/or modify it under the terms #
+# of the GNU General Public License version 2 as published by the Free Software    #
+# Foundation.                                                                      #
+#                                                                                  #
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY  #
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A  #
+# PARTICULAR PURPOSE.  See the GNU General Public License for more details.        #           
+#                                                                                  #
+# You should have received a copy of the GNU General Public License along with this#
+# program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street,#                   
+# Fifth Floor, Boston, MA  02110-1301, USA.                                        #
+#                                                                                  #
+#----------------------------------------------------------------------------------#
+# Fast job submission through ssh                                                  #
+#----------------------------------------------------------------------------------#
+# Written by Chris Pickard, Copyright (c) 2005-2020                                #
+#----------------------------------------------------------------------------------#
+#                                                                                  #
+#==================================================================================#
+
+# Check for spawn files
+if ls .spawnpids* &>/dev/null; then
+    echo 'spawn files detected - aborting ...'
+    exit 127
+fi
+
+# Check for minimum number of arguments
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 [command]"
+    exit 1
+fi
+
+command=$*
+mpinp=1
+directory=`pwd`
+cd $directory
+
+# Load mpinp argument
+while [ $# -gt 1 ]; do
+    case $1 in
+        -mpinp) mpinp=$2; shift 2 ;;
+        *) shift 1 ;;
+    esac
+done
+
+# Execute the command in parallel locally
+for i in $(seq 1 $mpinp); do
+    ( $command < /dev/null >& /dev/null & echo "localhost" $! >> .spawnpids.$i ) &
+done
+
+wait
+exit 0
+

@@ -1,0 +1,38 @@
+#!/bin/bash
+
+if [ $# -lt 1 ]; then
+    echo 'farm [command]'
+    exit 1
+fi
+
+if ls .farmpids* &>/dev/null; then
+    echo 'farm files detected - aborting ...'
+    exit 127
+fi
+
+command=$*
+ompnp=1
+
+while [ $# -gt 1 ] ; do
+    case $1 in
+	-ompnp) ompnp=$2 ; shift 2 ;;
+	-s) seed=$2 ; shift 2 ;;
+	*) shift 1 ;;
+    esac
+done
+
+for i in `grep -v \# ~/.spawn | awk 'BEGIN { FS = "slots=" } ; {print $1}'`
+do  
+    (slots=`awk -v host=$i '$1==host {print $2}' ~/.spawn | awk 'BEGIN { FS = "slots=" } ; {print $2}'`
+    root=`awk -v host=$i '$1==host {print $3}' ~/.spawn | awk 'BEGIN { FS = "root=" } ; {print $2}'`
+    p=$root`pwd`
+    jobs=`echo "$slots/$ompnp" | bc`
+    rstrng=`tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w ${1:-8} | head -n 1`
+    if [ $jobs -gt 0 ]; then 
+	cmd='(cd '$p' ; for j in {1..'$jobs'}; do ( '$command'.'$rstrng'.$j < /dev/null > '$seed'.'$rstrng'.$j.out 2> '$seed'.'$rstrng'.$j.err & echo '$i' $! >> .farmpids.'$i'.$j) ; done < /dev/null >& /dev/null &)'
+	ssh -x $i $cmd
+    fi)&
+done
+wait
+exit 0
+

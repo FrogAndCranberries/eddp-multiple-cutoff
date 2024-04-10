@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -e
+
+# Check no arguments were passed
+if [ $# -ne 0 ]; then
+    echo 'defarm'
+    exit 1
+fi
+
+# Iterate over all .farmpids.* files
+while [[ `ls .farmpids.* 2> /dev/null | wc -l` -gt 0 ]]
+do
+
+   for sp in .farmpids.*
+   do
+   
+      read host pid < $sp
+
+      # Terminate the group of processes for each farm pid
+      (pgid=`ps -o pgid= $pid` && pkill -9 -g $pgid < /dev/null >& /dev/null &) && rm $sp < /dev/null >& /dev/null &
+
+   done
+
+   wait
+
+done
+
+exit 0
+

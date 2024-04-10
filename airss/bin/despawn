@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -ne 0 ]; then
+    echo 'despawn'
+    exit 1
+fi
+
+while [[ `ls .spawnpids.* 2> /dev/null | wc -l` -gt 0 ]]
+do
+
+   for sp in .spawnpids.*
+   do
+   
+      read host pid < $sp
+   
+      (ssh -n -x $host '(pgid=`ps -o pgid= '$pid'` && pkill -9 -g $pgid < /dev/null >& /dev/null &)' && rm $sp) < /dev/null >& /dev/null &
+
+   done
+
+   wait
+
+done
+
+exit 0
+

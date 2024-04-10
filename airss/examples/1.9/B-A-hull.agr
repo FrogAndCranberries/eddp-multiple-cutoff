@@ -1,0 +1,210 @@
+@version 50109
+@default linewidth 1.5
+@g0 on
+@with g0
+@map font 4 to "Helvetica", "Helvetica"
+@map font 10 to "Courier-Bold", "Courier-Bold"
+@    world xmin     0.000
+@    world xmax     1.000
+@    world ymin    -4.808
+@    world ymax     1.603
+@    view xmin 0.150000
+@    view xmax 0.85
+@    view ymin 0.200000
+@    view ymax 0.900000
+@    xaxis  bar linewidth 1.5
+@    xaxis  tick major linewidth 1.5
+@    xaxis  tick minor linewidth 1.5
+@    xaxis  tick major      0.10
+@    xaxis  label "x in A\s1-x\NB\sx\N"
+@    xaxis  label font 4
+@    xaxis  ticklabel font 4
+@    yaxis  bar linewidth 1.5
+@    yaxis  tick major linewidth 1.5
+@    yaxis  tick minor linewidth 1.5
+@    yaxis  ticklabel format decimal
+@    yaxis  ticklabel prec 2
+@    yaxis  tick major      0.64
+@    yaxis  label "Formation Enthalpy (eV/unit)"
+@    yaxis  label font 4
+@    yaxis  ticklabel font 4
+@    s0 type xy
+@    s0 symbol 1
+@    s0 symbol size 0.500000
+@    s0 symbol color 1
+@    s0 symbol pattern 1
+@    s0 symbol fill color 1
+@    s0 symbol fill pattern 1
+@    s0 line type 1
+@    s0 line linestyle 1
+@    s0 line linewidth 2.0
+@    s0 line color 1
+@    s1 type xy
+@    s1 symbol 1
+@    s1 symbol size 0.300000
+@    s1 symbol color 2
+@    s1 symbol pattern 1
+@    s1 symbol fill color 2
+@    s1 symbol fill pattern 1
+@    s1 line type 0
+@target G0.S0
+@type xy
+   0.00000   0.00000
+   0.50000  -4.37089
+   0.66667  -3.39371
+   0.75000  -2.80133
+   1.00000   0.00000
+&
+@target G0.S1
+@type xy
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.19735
+     1.00000     0.00048
+     1.00000     0.00000
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.00000
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.00000
+     1.00000     0.00048
+     1.00000     0.00048
+     1.00000     0.00048
+     0.28571    -2.36565
+     0.28571    -2.36565
+     0.00000     0.00095
+     0.00000     0.00095
+     0.00000     0.00095
+     0.00000     1.51447
+     0.00000     0.00095
+     0.00000     0.00095
+     0.00000     0.48014
+     0.00000     0.00000
+     0.00000     0.00095
+     0.00000     0.00095
+     0.00000     0.00095
+     0.00000     0.00095
+     0.00000     0.00095
+     0.00000     0.00095
+     0.00000     0.00095
+     0.00000     0.00095
+     0.62500    -2.56996
+     0.62500    -2.52997
+     0.62500    -3.02618
+     0.62500    -2.86365
+     0.42857    -2.98128
+     0.42857    -2.94312
+     0.42857    -2.98128
+     0.42857    -3.24895
+     0.42857    -3.08131
+     0.57143    -3.11961
+     0.57143    -2.97337
+     0.75000    -2.31901
+     0.75000    -2.79983
+     0.75000    -2.80133
+     0.75000    -2.31901
+     0.75000    -2.53996
+     0.75000    -2.80133
+     0.40000    -2.86770
+     0.40000    -2.43231
+     0.37500    -2.13679
+     0.37500    -2.38721
+     0.33333    -2.03278
+     0.33333    -2.03278
+     0.33333    -2.03278
+     0.33333    -2.03278
+     0.33333    -2.30687
+     0.33333    -2.03278
+     0.33333    -2.55613
+     0.60000    -3.25458
+     0.60000    -3.25458
+     0.60000    -3.25458
+     0.60000    -3.25458
+     0.20000    -1.17835
+     0.20000    -0.94710
+     0.66667    -3.39371
+     0.66667    -3.39371
+     0.66667    -3.39371
+     0.66667    -3.39371
+     0.50000    -4.37089
+     0.50000    -2.84758
+     0.50000    -4.37089
+     0.50000    -3.99348
+     0.50000    -4.37089
+     0.50000    -4.37089
+     0.50000    -4.37089
+     0.16667    -1.02650
+     0.16667    -0.39914
+     0.80000    -2.10174
+     0.80000    -2.10174
+     0.80000    -1.77923
+     0.14286    -0.94246
+     0.14286    -0.90702
+     0.25000    -1.49860
+     0.25000    -1.71184
+     0.25000    -1.55697
+     0.25000    -1.55697
+     0.25000    -1.71355
+     0.25000    -1.47375
+     0.25000    -1.68156
+     0.71429    -2.12711
+     0.85714    -0.38263
+     0.85714    -0.71247
+&
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.88500
+@    string color 1
+@    string rot 0
+@    string font 10
+@    string just 0
+@    string char size 0.7500000
+@    string def "A          4     P63/mmc 0.000"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.86000
+@    string color 1
+@    string rot 0
+@    string font 10
+@    string just 0
+@    string char size 0.7500000
+@    string def "BA         1     Pm-3m   0.500"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.83500
+@    string color 1
+@    string rot 0
+@    string font 10
+@    string just 0
+@    string char size 0.7500000
+@    string def "B2A        1     I4/mmm  0.667"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.81000
+@    string color 1
+@    string rot 0
+@    string font 10
+@    string just 0
+@    string char size 0.7500000
+@    string def "B3A        1     I4/mmm  0.750"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.78500
+@    string color 1
+@    string rot 0
+@    string font 10
+@    string just 0
+@    string char size 0.7500000
+@    string def "B          2     P63/mmc 1.000"

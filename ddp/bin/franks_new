@@ -1,0 +1,78 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -ne 14 ]; then
+    echo ${0##*/}' <num_body> <num_p> <p_min> <p_max> <train_num> <valid_num> <test_num> <delta_e> <press> <highestrmax> <rmax2> <rmax3> <rmax4> <rmax5>'
+    echo ' note: if called as frankm, then the mean feature vector is computed'
+  exit 1
+fi
+
+if [ ${0##*/} == 'frankm' ]; then
+    mean='-m'
+else
+    mean=''
+fi
+
+numb=$1
+nump=$2
+pmin=$3
+pmax=$4
+ntrain=$5
+nvalid=$6
+ntest=$7
+deltae=$8
+press=$9
+highestrmax=${10}
+rmax2=${11}
+rmax3=${12}
+rmax4=${13}
+rmax5=${14}
+
+
+#highestrmax=$(printf "%s\n" "$rmax2" "$rmax3" "$rmax4" "$rmax5" | sort -n | tail -n 1)
+
+
+function cutlist {
+
+    let end=$2+1
+    sed -n "$1,$2p;$endq" list.franks
+
+}
+
+echo 'shuffling data ... '
+
+ca -p $press -de $deltae -l -r | shuf | awk '{print $1}' > list.franks
+
+comp=`grep -h "^SFAC" *.res | sed 's/SFAC//g' | grep -E -o '[[:alpha:]]{1,}' | sort | uniq |  awk '{printf $0" " ;}'`
+
+echo "composition space ... " $comp
+
+let n1=1
+let n2=$ntrain
+let n3=$ntrain+1
+let n4=$ntrain+$nvalid
+let n5=$ntrain+$nvalid+1
+let n6=$ntrain+$nvalid+$ntest
+
+echo 'building training data ...'
+
+cutlist $n1 $n2 | parallel -I% --progress "rescat % | frank_new $mean -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $numb -p $nump -pmin $pmin -pmax $pmax" > training
+#cutlist $n1 $n2 | xargs rescat | frank_new $mean -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $numb -p $nump -pmin $pmin -pmax $pmax > validation
+
+echo 'building validation data ...'
+
+cutlist $n3 $n4 | parallel -I% --progress "rescat % | frank_new $mean -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $numb -p $nump -pmin $pmin -pmax $pmax" > validation
+#cutlist $n3 $n4 | xargs rescat | frank_new $mean -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $numb -p $nump -pmin $pmin -pmax $pmax > validation
+
+echo 'building testing data ...'
+
+cutlist $n5 $n6 | parallel -I% --progress "rescat % | frank_new $mean -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $numb -p $nump -pmin $pmin -pmax $pmax" > testing
+#cutlist $n5 $n6 | xargs rescat | frank_new $mean -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $numb -p $nump -pmin $pmin -pmax $pmax > testing
+
+
+rm -f list.franks
+
+echo 'done'
+
+exit 0

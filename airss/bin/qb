@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ $# -lt 1 ]; then
+    echo 'qb <seed>'
+    exit 1
+fi
+
+buildcell < $1.cell | cabal cell res > $1.res && open -g $1.res
+
+exit 0

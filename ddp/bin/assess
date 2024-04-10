@@ -1,0 +1,109 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -lt 2 ]; then
+  echo 'assess <path_eddp> <path_dft>'
+  exit 1
+fi
+
+path_eddp=$1
+path_dft=$2
+
+comps=`ca -s 2> /dev/null | awk '{printf "%s ",$6}'`
+
+for comp in $comps;
+do
+
+    stats=`join -o 1.4,2.4 <(cat $path_eddp/*.res | cryan -nr -f $comp -r | sort) <(cat $path_dft/*.res | cryan -nr -f $comp -r | sort) | tee assess.$comp.temp |  awk '{RMSE=RMSE+($1-$2)^2}{MAE=MAE+sqrt(($1-$2)^2)}END{print " RMSE:",sqrt(RMSE/NR)," eV MAE:",MAE/NR,"eV"}'`
+
+    minval=`sort -n -k 2 assess.$comp.temp | head -1 | awk '{print $2}'`
+    maxval=`sort -n -k 2 assess.$comp.temp | tail -1 | awk '{print $2}'`
+    
+    tick=`echo   "( $maxval - $minval ) / 5"| bc -l`
+    
+cat << EOF > assess.$comp.agr
+@version 50109
+@default linewidth 2.0
+@default linestyle 1
+@g0 on
+@with g0
+@map font 4 to "Helvetica", "Helvetica"
+@map font 10 to "Courier-Bold", "Courier-Bold"
+@map color 0 to (255, 255, 255), "white"
+@map color 1 to (0, 0, 0), "black"
+@map color 2 to (228, 26, 28), "red"
+@map color 3 to (55, 126, 184), "blue"
+@map color 4 to (77, 175, 74), "green"
+@map color 5 to (152, 78, 163), "purple"
+@map color 6 to (255, 127, 0), "orange"
+@map color 7 to (255, 255, 51), "yellow"
+@map color 8 to (166, 86, 40), "brown"
+@map color 9 to (247, 129, 191), "pink"
+@map color 10 to (153, 153, 153), "grey"
+@map color 11 to (166, 206, 227), "lightblue"
+@map color 12 to (178, 223, 138), "lightgreen"
+@map color 13 to (251, 154, 153), "lightred"
+@map color 14 to (253, 191, 111), "lightorange"
+@map color 15 to (202, 178, 214), "lightpurple"
+@world xmin $minval
+@world xmax $maxval
+@world ymin $minval
+@world ymax $maxval
+@view xmin 0.200000
+@view xmax 0.900000
+@view ymin 0.200000
+@view ymax 0.900000
+@title "$comp"
+@title font 4
+@title size 1.500000
+@title color 1
+@subtitle "$stats"
+@subtitle font 4
+@subtitle size 1.000000
+@subtitle color 1
+@xaxis bar linewidth 1.5
+@xaxis tick major linewidth 1.5
+@xaxis tick minor linewidth 1.5
+@xaxis tick major $tick
+@xaxis label "Enthalpy (eV)"
+@xaxis label font 4
+@xaxis ticklabel font 4
+@yaxis bar linewidth 1.5
+@yaxis tick major linewidth 1.5
+@yaxis tick minor linewidth 1.5
+@yaxis ticklabel format decimal
+@yaxis ticklabel prec 2
+@yaxis tick major $tick
+@yaxis label "Predicted Enthalpy (eV)"
+@yaxis label font 4
+@yaxis ticklabel font 4
+@s1 symbol 1
+@s1 symbol size 0.16000
+@s1 symbol color 1
+@s1 symbol pattern 1
+@s1 symbol fill color 2
+@s1 symbol fill pattern 1
+@s1 symbol linewidth 0.25
+@s1 symbol linestyle 1
+@s1 line type 0
+@s0 line type 1
+@s0 line linestyle 1
+@s0 line linewidth 1.0
+@s0 line color 2
+@s0 line pattern 1
+$minval $minval
+$maxval $maxval
+&
+EOF
+
+cat assess.$comp.temp >> assess.$comp.agr
+echo '&' >> assess.$comp.agr
+
+gracebat assess.$comp.agr -hdevice PDF -hardcopy -printfile assess.$comp.pdf 2> /dev/null
+
+rm assess.$comp.temp
+
+done
+
+exit 0

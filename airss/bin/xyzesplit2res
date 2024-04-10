@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 0 ]; then
+    echo 1>&2 "Usage: xyzesplit2res takes input from stdin"
+    exit 127
+fi
+
+tmpfile=$(mktemp -u /tmp/XXXXXXXXX-)
+
+csplit - -s -z -f $tmpfile '/^Lattice/-1' '{*}'
+
+for f in `ls $tmpfile* 2> /dev/null` ; do
+    label=${f##*/}
+    cabal xyze res < $f | sed "s/cabal-in-out/$label/g"
+done
+
+
+exit 0

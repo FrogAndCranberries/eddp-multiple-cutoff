@@ -1,0 +1,46 @@
+#!/bin/bash
+##################################################################
+# Script to perform a geometry optimistion using a python script #
+##################################################################
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 3 ]; then
+         echo 1>&2 "Usage: python_relax <exe> <pressure> <seed>"
+         exit 127
+fi
+
+###########################
+# Set the input variables #
+###########################
+
+exe=$1
+pressure=$2
+seed=$3
+
+##########################
+# Execute the relaxation #
+##########################
+
+cabal cell xyze < $seed.cell > $seed.xyz
+$exe $pressure $seed > $seed.log
+if [ -f $seed-out.xyz ]; then
+    cabal xyze cell < $seed-out.xyz > $seed-out.cell
+fi
+
+##########################
+# Return the key results #
+##########################
+
+if [ -f $seed-out.xyz ]; then
+    # taken from castep_relax
+    grep "Pressure:" $seed.castep | tail -1 | awk 'BEGIN{FS="[*]|[:]"}{printf "%-20s%10.8f\n", "Pressure: ",$3}';
+    grep -E -e 'Final free|corrected final free|Final Enthalpy' $seed.castep | tail -1 | awk 'BEGIN {FS="="};{print $2}' | awk '{printf "%-20s%10.8f\n", "Enthalpy: ",$1}'
+    grep "Current cell volume =" $seed.castep | tail -1 | awk '{printf "%-20s%10.8f\n", "Volume: ",$5}';
+fi
+
+exit 0

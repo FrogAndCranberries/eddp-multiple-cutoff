@@ -1,0 +1,132 @@
+#!/bin/bash
+
+if [ $# -lt 4 ]; then
+  echo 'genqe <volume> <units> n x [<species> <number>]'
+  exit 1
+fi
+
+if [ -z "${PSPOT_DIR}" ]; then
+PSPOT_DIR=~/pspot
+fi
+
+numspecies=`echo "($#-2)/2" | bc`
+
+seedname=`for i in ${*:2}
+do
+if [ $i != "1" ]; then
+echo -n $i
+fi
+done`
+length=`echo "scale=6;e(l($1)/3.0)" | bc -l`
+
+# Prepare the cell file
+
+echo '%BLOCK LATTICE_CART' > $seedname.cell
+echo $length 0 0 >> $seedname.cell
+echo 0 $length 0 >> $seedname.cell
+echo 0 0 $length >> $seedname.cell
+echo '%ENDBLOCK LATTICE_CART' >> $seedname.cell
+echo ' ' >> $seedname.cell
+echo '#VARVOL='$1 >> $seedname.cell
+echo ' ' >> $seedname.cell
+echo '%BLOCK POSITIONS_FRAC' >> $seedname.cell
+for (( i = 1; i <= $numspecies; i++ ))  
+  do
+    num=0
+    for (( j = 1; j <= $2; j++ ))  
+    do
+	for (( k = 1; k <= ${*:$[2*($i-1)+4]:1}; k++ ))  
+	do
+	    num=$[$num+1]
+	    
+	    echo ${*:$[2*($i-1)+3]:1}' 0.0 0.0 0.0 # '${*:$[2*($i-1)+3]:1}$num' % NUM=1' >> $seedname.cell
+	    
+	done
+    done
+done
+echo '%ENDBLOCK POSITIONS_FRAC' >> $seedname.cell
+echo ' ' >> $seedname.cell
+echo -n '##SPECIES='  >> $seedname.cell
+for (( i = 1; i <= $numspecies; i++ ))
+do
+    species=${*:$[2*($i-1)+3]:1}
+    echo -n $species >> $seedname.cell
+    if [[ $i < $numspecies ]]; then
+	echo -n ',' >> $seedname.cell
+    else
+	echo >> $seedname.cell
+    fi
+done
+echo '##NATOM=3-9'  >> $seedname.cell
+echo '##FOCUS='$numspecies  >> $seedname.cell
+echo ' ' >> $seedname.cell
+echo '#SYMMOPS=2-4' >> $seedname.cell
+echo '##SGRANK=20' >> $seedname.cell
+echo '#NFORM=1' >> $seedname.cell
+echo '##ADJGEN=0-1' >> $seedname.cell
+echo '##SLACK=0.25' >> $seedname.cell
+echo '##OVERLAP=0.1' >> $seedname.cell
+echo '#MINSEP=1-3 AUTO' >> $seedname.cell
+echo '#COMPACT' >> $seedname.cell
+echo '##SYSTEM={Rhom,Tric,Mono,Cubi,Hexa,Orth,Tetra}' >> $seedname.cell
+echo ' ' >> $seedname.cell
+echo 'KPOINTS_MP_SPACING 0.07' >> $seedname.cell
+echo ' ' >> $seedname.cell
+
+# Prepare the qe file
+# qe_relax fills in fields labelled 'xxx'
+echo "&CONTROL " > $seedname.qe
+echo "  calculation = 'vc-relax' , " >> $seedname.qe
+echo "  verbosity = 'low' , " >> $seedname.qe
+echo "  restart_mode = 'from_scratch' , " >> $seedname.qe
+echo "  nstep = 20 , " >> $seedname.qe
+echo "  tstress = .true. , " >> $seedname.qe
+echo "  tprnfor = .true. , " >> $seedname.qe
+echo "  outdir = './' , " >> $seedname.qe
+echo "  prefix = 'xxx' , " >> $seedname.qe
+echo "  max_seconds = 1.0D7 , " >> $seedname.qe
+echo "  pseudo_dir = './' , " >> $seedname.qe
+echo "  etot_conv_thr = 1.0D-5 , " >> $seedname.qe
+echo "  forc_conv_thr = 1.0D-3 , " >> $seedname.qe
+echo "  disk_io = 'none' , " >> $seedname.qe
+echo "/ " >> $seedname.qe
+echo " " >> $seedname.qe
+echo "&SYSTEM " >> $seedname.qe
+echo "  ecutwfc = X , " >> $seedname.qe
+echo "  ecutrho = X , " >> $seedname.qe
+echo "  occupations = 'smearing' , " >> $seedname.qe
+echo "  smearing = 'gaussian' , " >> $seedname.qe
+echo "  degauss = 1.0D-2 , " >> $seedname.qe
+echo "  ibrav = 0 , " >> $seedname.qe
+echo "  nat = xxx , " >> $seedname.qe
+echo "  ntyp = xxx , " >> $seedname.qe
+echo "/ " >> $seedname.qe
+echo " " >> $seedname.qe
+echo "&ELECTRONS " >> $seedname.qe
+echo "  electron_maxstep = 1000 , " >> $seedname.qe
+echo "  conv_thr = 1.0D-6 , " >> $seedname.qe
+echo "  diagonalization = 'cg' , " >> $seedname.qe
+echo "/ " >> $seedname.qe
+echo " " >> $seedname.qe
+echo "&IONS " >> $seedname.qe
+echo "  ion_dynamics = 'bfgs' , " >> $seedname.qe
+echo "  trust_radius_max = 0.5D0 , " >> $seedname.qe
+echo "/ " >> $seedname.qe
+echo " " >> $seedname.qe
+echo "&CELL " >> $seedname.qe
+echo "  press = xxx , " >> $seedname.qe
+echo "  press_conv_thr = 0.5D0 , " >> $seedname.qe
+echo "  cell_dynamics = 'bfgs' , " >> $seedname.qe
+echo "  cell_dofree = 'all' , " >> $seedname.qe
+echo "  cell_factor = 3.0 , " >> $seedname.qe
+echo "/ " >> $seedname.qe
+echo " " >> $seedname.qe
+echo "ATOMIC_SPECIES " >> $seedname.qe
+echo " <Element> <Atomic Mass> <Name of pseudopotential file> " >> $seedname.qe
+
+echo Please modify ATOMIC_SPECIES in $seedname.qe to name your
+echo pseudopotential files and atomic masses
+echo Then modify ecutwfc and ecutrho to the cutoffs
+echo appropriate to these potentials
+
+exit 0

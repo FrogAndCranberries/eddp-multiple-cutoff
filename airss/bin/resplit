@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 0 ]; then
+    echo 1>&2 "Usage: resplit takes input from stdin"
+    exit 127
+fi
+
+tmpfile=$(mktemp -u /tmp/resplit.XXXXXXXXX-)
+
+csplit - -s -z -f $tmpfile '/^TITL\|^REMOVED/' '{*}'
+
+for f in `ls $tmpfile* 2> /dev/null` ; do
+    grep -q  "^REMOVED" $i && continue
+    strucid=`grep -m 1 ^TITL $f | awk '{print $2}'` && [ ! -z "$strucid" ] && mkdir -p ${strucid%%-*} && mv $f ${strucid%%-*}/$strucid.res && rm -f $f &
+done
+
+
+exit 0

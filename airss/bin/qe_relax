@@ -1,0 +1,495 @@
+#!/bin/bash
+
+###########################################################################################
+# Script to perform a full, self consistent, geometry optimisation using Quantum Espresso #
+#                                                                                         #
+# This script defines and uses four bash functions:                                       #
+#     setup_qe_input ()                                                                   #
+#     run_qe ()                                                                           #
+#     new_cell ()                                                                         #
+#     qe_timings ()                                                                       #
+#                                                                                         #
+###########################################################################################
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 6 ]; then
+         echo 1>&2 "Usage: qe_relax <maxit> <exe> <press [GPa]> <sim> <symm> <seed>"
+         exit 127
+fi
+
+###########################
+# Set the input variables #
+###########################
+
+maxit=$1
+exe=$2
+pressure=$3
+sim=$4
+symm=$5
+seed=$6
+
+#############
+# Functions #
+#############
+
+function setup_qe_input ()
+{
+
+    # Set the pressure
+
+    # QE works in kbar, $pressure is in GPa
+    # If 'press' is already present, modify it
+    # (exercise caution so that 'press_conv_thr' is not changed)
+    if grep -q -w press ${seed}.qe
+       then
+       sed -i "/\<press\>/c\  press = $( echo 10*${pressure} | bc -l )D0 ," ${seed}.qe
+    elif grep -q \&CELL ${seed}.qe
+       # Otherwise if &CELL is present, add it in the line after ...
+       then
+       sed -i "s/&CELL/&\n  press = $( echo 10*${pressure} | bc -l )D0 ,/" ${seed}.qe
+    else
+       # ... else we add the &CELL section in ourselves
+       echo " " >> ${seed}.qe
+       echo "&CELL" ${seed}.qe
+       echo "  press = "$( echo 10*${pressure} | bc -l )"D0 ," >> ${seed}.qe
+       echo "/" ${seed}.qe
+       echo " " >> ${seed}.qe
+    fi
+
+
+    # Set the output directory
+ 
+    output_directory=\'$(echo ${seed%/*}/)\'
+    # If outdir is already present, modify it
+    if grep -q outdir ${seed}.qe
+       then
+       sed -i "/outdir/c\  outdir = $output_directory ," ${seed}.qe
+    else
+       # Otherwise add it in the &CONTROL section
+       sed -i "s/&CONTROL/&\n  outdir = $output_directory ,/" ${seed}.qe
+    fi
+
+    # Set the prefix
+ 
+    pfix=\'$(echo ${seed##*\/})\'
+    # If prefix is already present, modify it
+    if grep -q prefix ${seed}.qe
+       then
+       sed -i "/prefix/c\  prefix = $pfix ," ${seed}.qe
+    else
+       # Otherwise add it in the &CONTROL section
+       sed -i "s/&CONTROL/&\n  prefix = $pfix ,/" ${seed}.qe
+    fi
+
+    # Increase cell_factor from default 2, to 3, for variable-cell calculations
+ 
+    # If cell_factor is already present, modify it
+    if grep -q cell_factor ${seed}.qe
+       then
+       sed -i "/cell_factor/c\  cell_factor = 3.0 ," ${seed}.qe
+    else
+       # Otherwise add it in the &CELL section
+       sed -i "s/&CELL/&\n  cell_factor = 3.0 ,/" ${seed}.qe
+    fi
+
+    # Append the structure
+
+    cabal cell qe < ${seed}.cell >> ${seed}.qe
+
+    # Deal with spin polarization
+    if grep -q starting_magnetization ${seed}.qe
+       then
+       # The structure has spins present - set these aside in a .sm file
+       grep starting_magnetization ${seed}.qe > ${seed}.sm
+       # Delete the spins from ${seed}.qe
+       sed -i '/starting_magnetization/d' ${seed}.qe
+    fi    
+
+    # Shore up ibrav, nat, ntyp and nspin
+
+    # Obtain these values first. We want the ones from cabal, which are output last.
+    q_ibrav=$(grep ibrav ${seed}.qe | tail -1 | sed -e 's/.*=\(.*\),.*/\1/' | xargs)
+    q_nat=$(grep nat ${seed}.qe | tail -1 | sed -e 's/.*=\(.*\),.*/\1/' | xargs)
+    q_ntyp=$(grep ntyp ${seed}.qe | tail -1 | sed -e 's/.*=\(.*\),.*/\1/' | xargs)
+    q_nspin=$(grep nspin ${seed}.qe | tail -1 | sed -e 's/.*=\(.*\),.*/\1/' | xargs)
+    # Obtain the line number of the last instance of &SYSTEM and delete a block
+    # following it. cabal outputs &SYSTEM, followed by four lines containing ibrav, nat,
+    # ntyp and nspin. This is the block we want to delete.
+    sline=$(grep -n \&SYSTEM ${seed}.qe | tail -1 | sed -e 's/:.*//g')
+    sed -i ''$sline','$((sline+4))'d' ${seed}.qe  ## This is fragile, but might work
+    # If ibrav is already present, modify it
+    if grep -q ibrav ${seed}.qe
+       then
+       sed -i "/ibrav/c\  ibrav = $q_ibrav ," ${seed}.qe
+    # Otherwise add it in the &SYSTEM section
+    else
+       sed -i "s/&SYSTEM/&\n  ibrav = $q_ibrav ,/" ${seed}.qe
+    fi
+    # Similarly for nat, ntyp and nspin:
+    if grep -q nat ${seed}.qe
+       then
+       sed -i "/nat/c\  nat = $q_nat ," ${seed}.qe
+    else
+       sed -i "s/&SYSTEM/&\n  nat = $q_nat ,/" ${seed}.qe
+    fi
+    if grep -q ntyp ${seed}.qe
+       then
+       sed -i "/ntyp/c\  ntyp = $q_ntyp ," ${seed}.qe
+    else
+       sed -i "s/&SYSTEM/&\n  ntyp = $q_ntyp ,/" ${seed}.qe
+    fi
+    if grep -q nspin ${seed}.qe
+       then
+       sed -i "/nspin/c\  nspin = $q_nspin ," ${seed}.qe
+    else
+       sed -i "s/&SYSTEM/&\n  nspin = $q_nspin ,/" ${seed}.qe
+    fi
+
+    # If a .sm file exists, insert the starting magnetizations
+    if [ -f "${seed}.sm" ]; then
+       sed -i "/&SYSTEM/r ${seed}.sm" ${seed}.qe
+    fi
+    
+}
+
+
+function run_qe ()
+{
+    
+    # Ensure that the spin in the cell and param are consistent
+    # ** I don't believe this necessary in QE - use 'starting_magnetization' for each atom, but the total isn't needed
+#   if [[ `grep SPIN= $seed.cell | wc -l` -gt 0 ]]; then
+#	grep -v -i "spin " $seed.param > $seed.param.temp
+#	echo "spin : " `grep SPIN= $seed.cell| awk 'BEGIN {FS="SPIN="};{ sum += $2 } END {print sum}'` >> $seed.param.temp
+#	mv $seed.param.temp $seed.param
+#    fi
+    
+    # Run Quantum Espresso 
+
+    set +e
+    eval $exe -i ${seed}.qe 1>>${seed}.qe.out 2>/dev/null
+    set -e
+    
+    # Trap a crashing of the code
+    
+    crashed=$(tail -15 ${seed}.qe.out | grep "JOB" | awk '{print $2}')
+    if [[ $crashed != DONE. ]]; then
+	exit 0 # Fail peacefully
+    fi
+    
+    # Monitor the convergence
+    # For Q.E., these values are in Rydbergs, not eV
+
+    grep "enthalpy new" ${seed}.qe.out | awk '{print $4}' > ${seed}.conv
+
+    # Create a ${seed}-out.cell file (with k-point information)
+    echo "%BLOCK LATTICE_CART" > ${seed}-out.cell    
+    grep -A 3 CELL_PARAMETERS ${seed}.qe.out | tail -3 >> ${seed}-out.cell
+    echo "%ENDBLOCK LATTICE_CART" >> ${seed}-out.cell
+    echo " " >> ${seed}-out.cell
+    echo "%BLOCK POSITIONS_FRAC" >> ${seed}-out.cell
+    grep -A ${q_nat} ATOMIC_POSITIONS ${seed}.qe.out | tail -${q_nat} >> ${seed}-out.cell
+    echo "%ENDBLOCK POSITIONS_FRAC" >> ${seed}-out.cell
+    echo " " >> ${seed}-out.cell
+    grep KPOINT ${seed}.cell >> ${seed}-out.cell
+    echo " " >> ${seed}-out.cell
+
+    # Determine how this run finished
+    # Look at the tail of ${seed}.qe.out going from "Program PWSCF" to end
+
+    if ( <${seed}.qe.out tac | sed '/Program PWSCF/q' | grep -q 'bfgs converged in' ); then
+       num_success=1
+    else
+       num_success=0
+    fi
+    success=$(($success-$num_success))
+
+    if ! ( grep -q 'bfgs converged in' ${seed}.qe.out ); then
+       success=3
+    fi
+
+    # Check on number of steps taken so far
+    
+    numit=$(grep "number of bfgs steps" ${seed}.qe.out | wc -l)
+    
+    if [[ $numit -ge $maxit ]]; then
+	success=1
+    fi
+    
+    return;
+}
+
+####################
+
+function new_cell ()
+{
+
+    # Symmetrise on the fly
+    
+    if [[ $symm -gt 0 ]]; then
+
+        nat0=$(cabal cell res < $seed-out.cell | wc | awk '{printf $1-5}')
+	cabal cell cell -$symm | cabal cell cell 0 > $seed-out.cell.temp && mv $seed-out.cell.temp $seed-out.cell
+        nat1=$(cabal cell res < $seed-out.cell | wc | awk '{printf $1-5}')
+        if [ $nat0 != $nat1 ]; then
+	    success=3
+        fi
+        # Make sure KPOINTS_MP_SPACING is present:
+        if ! ( grep -q KPOINTS $seed-out.cell ); then
+             echo " " >> $seed-out.cell
+             grep KPOINTS $seed.cell >> $seed-out.cell
+        fi
+    fi
+
+
+    # Use $seed-out.cell to update $seed.cell
+
+    sed -n -e '/^%BLOCK [Ll][Aa][Tt]*/, /^%ENDBLOCK [Pp][Oo][Ss]*/p' $seed-out.cell | grep -v -i FIX_VOL | sed -e '/^%BLOCK [Cc][Ee][Ll]*/, /^%ENDBLOCK [Cc][Ee][Ll]*/d' > $seed-out.cell.temp;
+    sed -e '/ANG/d' $seed-out.cell.temp > $seed.cell.temp;
+    sed -e '/^%BLOCK [Ll][Aa][Tt]*/, /^%ENDBLOCK [Pp][Oo][Ss]*/d' $seed.cell >> $seed.cell.temp;
+    mv $seed.cell.temp $seed.cell;
+    rm $seed-out.cell.temp;
+
+
+    # Use $seed-out.cell to update the geometry in $seed.qe input
+
+    #     Delete old geometry
+    sed -i '/CELL_PARAMETERS/,$d' ${seed}.qe
+    #     Append new geometry
+    cabal cell qe < ${seed}-out.cell >> ${seed}.qe
+    #     Shore up ibrav, nat and ntyp
+    q_ibrav=$(grep ibrav ${seed}.qe | tail -1 | sed -e 's/.*=\(.*\),.*/\1/' | xargs)
+    q_nat=$(grep nat ${seed}.qe | tail -1 | sed -e 's/.*=\(.*\),.*/\1/' | xargs)
+    q_ntyp=$(grep ntyp ${seed}.qe | tail -1 | sed -e 's/.*=\(.*\),.*/\1/' | xargs)
+    #     Obtain the line number of the last instance of &SYSTEM and delete a block
+    #     following it (this is part of cabal's output)
+    sline=$(grep -n \&SYSTEM ${seed}.qe | tail -1 | sed -e 's/:.*//g')
+    sed -i ''$sline','$((sline+4))'d' ${seed}.qe 
+    #     Do the shoring up
+    sed -i "/ibrav/c\  ibrav = $q_ibrav ," ${seed}.qe
+    sed -i "/nat/c\  nat = $q_nat ," ${seed}.qe
+    sed -i "/ntyp/c\  ntyp = $q_ntyp ," ${seed}.qe
+
+    
+#    # If we are doing a spin polarised calculation, store the spins calculated by Mulliken analysis
+#
+#    if [[ `grep "SPIN=" $seed.cell | wc -l` -gt 0 ]]; then
+#
+#	nlines=`sed -n '/[pP][oO][sS][iI][tT][iI][oO][nN][sS]/{=; q;}' $seed.cell`
+#	printf "\n" > $seed.spin
+#	for (( j = 2 ; j <= $nlines; j++ ))
+#	do
+#	    printf "\n" >> $seed.spin
+#	done
+#	
+#	nions=`grep "Total number of ions in cell =" $seed.castep | tail -1 | awk '{print $8}'`
+#
+#	sed -n '/Total  Charge (e)  Spin (hbar\/2)/,/Spin       Length (A)/p' $seed.castep | sed '/==/,/==/!d;//d' | awk '{print "SPIN=",$9}'| tail -$nions >> $seed.spin
+#	
+#	awk 'BEGIN { FS="SPIN=" };{print $1}' $seed.cell | paste - $seed.spin | expand > $seed.cell.temp
+#	
+#	mv $seed.cell.temp $seed.cell
+#	rm $seed.spin
+#	
+#    fi
+    
+    # Check if we have seen this structure before
+    
+    if [[ $sim -gt 0 ]]; then
+
+        nat=$(cabal cell res < $seed.cell | wc | awk '{printf $1-5}')
+	name=${seed##*/}
+        known=`(find . -maxdepth 1 -name '*.res' | xargs cat; cabal cell res < $seed.cell | sed "1s/.*/TITL $name 0.0 0.0 0.0 0 0 $nat (P1) n - 1/" ) | cryan -c $sim $name 2> /dev/null | awk '{print $1}' | head -1`
+
+        if [ -e $known.res ]; then 
+
+	    # Add one to the count
+	    mv $known.res $known.res.work
+	    grep TITL $known.res.work | awk 'BEGIN { FS = "n -" } ; { print $1,"n -",$2+1 }' > $known.res.new
+	    grep -v TITL $known.res.work  >> $known.res.new
+	    mv $known.res.new $known.res
+	    rm -f $known.res.work
+ 
+	    exit 0 # Fail peacefully
+	    
+	fi
+    fi
+
+	
+    return;
+}
+
+############
+
+function qe_timings ()
+{
+
+    # QE reports timing information in the form XdYhZmWs (days, hours, minutes, seconds)
+    # and so this function converts its input to seconds. 
+
+    # This function expects 'qe_time' to be set and equal to a QE time, e.g. 1m11.95s.
+    # It then writes the variable 'qe_time_s'. Units (s) are not written.
+
+    if [[ $qe_time == *"d"*"h"*"m"*"s"* ]]; then
+        # The time is dhms
+        qe_time_s=$(echo ${qe_time} | awk -F '[dhms]' '{ printf "%.2f\n", ($1 * 86400) + ($2 * 3600) + ($3 * 60) + $4 }')
+
+    elif [[ $qe_time == *"h"*"m"*"s"* ]]; then
+        # The time is hms
+        qe_time_s=$(echo ${qe_time} | awk -F '[hms]' '{ printf "%.2f\n", ($1 * 3600) + ($2 * 60) + $3 }')
+
+    elif [[ $qe_time == *"m"*"s"* ]]; then
+        # The time is ms
+        qe_time_s=$(echo ${qe_time} | awk -F '[ms]' '{ printf "%.2f\n", ($1 * 60) + $2 }')
+
+    elif [[ $qe_time == *"s"* ]]; then
+        # The time is s
+        qe_time_s=$(echo ${qe_time} | awk -F '[s]' '{ printf "%.2f\n", $1 }')
+
+    fi
+
+    return;
+}
+
+
+
+############
+# Optimise #
+############
+
+# Initialise the input
+setup_qe_input
+
+if [[ $maxit -gt 0 ]]; then
+    
+    # Adjust the number of optimisation steps (nstep) to four
+    # If the user has set this value, store it, then modify it ...
+    if grep -q nstep ${seed}.qe
+       then
+       user_nstep=$(grep nstep ${seed}.qe | sed -e 's/.*=\(.*\),.*/\1/' | xargs)
+       sed -i "/nstep/c\  nstep = 4 ," ${seed}.qe
+    else
+       # ... otherwise add 'nstep' in the &CONTROL section
+       sed -i "s/&CONTROL/&\n  nstep = 4 ,/" ${seed}.qe
+    fi
+    
+    # Do three short rough runs
+    
+    success=3
+    
+    for ((  i = 1 ;  i <= 3;  i++  ))
+    do
+	run_qe
+	new_cell
+    done
+    
+    # Put the number of optimisation steps back to the original value ($user_nstep)
+    # If the user never set nstep, then we delete the line, and so Quantum Espresso should
+    # go to its default value (50)
+    if [ -z "$user_nstep" ]
+    then
+       sed -i "/nstep/d" ${seed}.qe
+    else
+       sed -i "/nstep/c\  nstep = $user_nstep ," ${seed}.qe
+    fi
+    
+else
+    
+    success=2
+    
+fi
+
+# Complete the full optimisation
+
+while [[ $success -gt 1 ]]; do
+    run_qe
+    new_cell
+done
+
+
+# All is well - finished
+
+
+# (1) Get pressure, volume and enthalpy
+#     These require conversion to GPa, Angstrom^3, and eV
+
+  final_pressure=$(grep -o 'P=.*' ${seed}.qe.out | tail -1 | sed -r 's/^.{2}//') # which is in kbar
+
+  final_pressure=$(echo $final_pressure/10 | bc -l)      # now in GPa
+
+  final_pressure=$( printf "%0.5f\n" ${final_pressure} ) # rounding
+
+
+  final_total_energy=$(grep '!.*total energy' ${seed}.qe.out | tail -1 | awk 'BEGIN {FS="="};{print $2}' | awk '{print $1}') # In Rydberg
+
+  final_total_energy=$(echo 13.60569301*$final_total_energy | bc -l)  # now in eV
+
+  final_total_energy=$( printf "%0.6f\n" ${final_total_energy} )      # rounding
+
+
+  final_volume=$(grep "unit-cell volume" ${seed}.qe.out | tail -1 | awk 'BEGIN {FS="="};{print $2}' | awk '{print $1}') # which is in (a.u.)^3
+
+  final_volume=$(echo 0.148184711472162821242*$final_volume | bc -l)  # now in Angstrom^3 
+
+  final_volume=$( printf "%0.6f\n" ${final_volume} )                  # rounding
+
+# Compute enthalpy as U+PV. P is the user-specified pressure (to be consistent with Q.E.), not $final_pressure
+
+  final_enthalpy=$( echo $final_total_energy + 0.006241510219780177*$pressure*$final_volume | bc -l) # Convert GPa to eV/Angstrom^3
+
+  final_enthalpy=$( printf "%0.6f\n" ${final_enthalpy} )              # rounding
+
+
+# (2) Write out a fake .castep file
+#    Code, start time:
+  grep "Program PWSCF" ${seed}.qe.out | tail -1 | awk '{print " Welcome to A B C Quantum-Espresso version", $3}' > $seed.castep
+  grep "Program PWSCF" ${seed}.qe.out | tail -1 | awk 'BEGIN {FS="starts on"};{print " Run started:", $2}' >> $seed.castep
+#       (I don't yet see an equivalent for " from code version " in Espresso) 
+#    XC functional:
+  grep "Exchange-correlation" ${seed}.qe.out | tail -1 | awk 'BEGIN {FS="="};{print " using functional :", $2}' >> $seed.castep
+#    Plane-wave cutoffs:
+  kcut=$(grep "kinetic-energy cutoff" ${seed}.qe.out | tail -1 | awk '{print $4}')
+  ccut=$(grep "charge density cutoff" ${seed}.qe.out | tail -1 | awk '{print $5}')
+  echo " plane wave basis set cut-off :" ${kcut} Ry \(kinetic\) ${ccut} Ry \(charge-density\) >> $seed.castep
+#    MP grid information:
+  grep -A 1 K_POINT ${seed}.qe | tail -1 | awk '{print " MP grid size for SCF calculation is ",$1,$2,$3}' >> $seed.castep
+  grep -A 1 K_POINT ${seed}.qe | tail -1 | awk '{print " with an offset of ",$4,$5,$6}' >> $seed.castep
+  grep "number of k points=" ${seed}.qe.out | tail -1 | awk '{print " Number of kpoints used =  ", $5}' >> $seed.castep
+#    Pseudopotentials:
+  echo "                          Files used for pseudopotentials:" >> $seed.castep
+  for q in `seq 1 1 ${q_ntyp}`
+  do
+     ps_info=($( grep -A 2 "PseudoPot. # $q" ${seed}.qe.out | tail -3 ))
+     echo "           " ${ps_info[4]} ${ps_info[8]} \(${ps_info[12]}\) >> $seed.castep
+     unset ps_info
+  done 
+  echo "                                                          " >> $seed.castep
+  echo "                           -------------------------------" >> $seed.castep
+#    Pressure, enthalpy and volume:
+  echo " *  Pressure:   " ${final_pressure} "                         *" >> $seed.castep
+  echo " Quantum-Espresso: Final Enthalpy     = " ${final_enthalpy} "eV" >> $seed.castep
+  echo " Current cell volume =            " ${final_volume} "A**3" >> $seed.castep
+  echo " " >> $seed.castep
+#    Total WALL times for PWSCF
+#    These are reported by QE in d/h/m/s, so we must convert to s
+  count_times=$(grep "PWSCF.*WALL" ${seed}.qe.out | wc -l) # There are this many timings
+  for q in `seq 1 1 ${count_times}`                        # Loop and print them
+  do
+      qe_time=$(grep -m ${q} "PWSCF.*WALL" ${seed}.qe.out | tail -1 | sed -e 's/.*CPU\(.*\)WALL.*/\1/')
+      qe_timings
+      echo " Total time          = " ${qe_time_s} " s " >> $seed.castep
+  done
+
+
+# (3) Print out pressure, enthalpy and volume to command line
+
+  echo "Pressure: "${final_pressure}
+  echo "Enthalpy: "${final_enthalpy}
+  echo "Volume: "${final_volume}
+
+exit 0

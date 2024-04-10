@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 0 ]; then
+    echo 1>&2 "Usage: cifsplit takes input from stdin"
+    exit 127
+fi
+
+
+tmpfile=$(mktemp -u /tmp/cifplit.XXXXXXXXX-)
+
+cat - -e | tr -d "^M$" | csplit - -s -z -f $tmpfile '/^#END/+1' '{*}'
+
+for f in `ls $tmpfile* 2> /dev/null` ; do
+    strucid=`grep -m 1 ^_database_code_CSD $f | awk '{print $2}'` && [ ! -z "$strucid" ] && mv $f $strucid.cif && rm -f $f &
+done
+
+
+exit 0

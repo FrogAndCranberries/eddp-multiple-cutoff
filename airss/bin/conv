@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 0 ]; then
+    echo 1>&2 "Usage: conv"
+    exit 127
+fi
+
+for f in *.res
+do
+    cabal res res 0.1 < $f > $f~ && mv $f~ $f
+done
+
+exit 0

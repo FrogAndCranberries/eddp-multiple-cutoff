@@ -1,0 +1,49 @@
+&CONTROL
+  calculation = 'vc-relax' ,
+  verbosity = 'low' ,
+  restart_mode = 'from_scratch' ,
+  nstep = 20 ,
+  tstress = .true. ,
+  tprnfor = .true. ,
+  outdir = './' ,
+  prefix = 'xxx' ,
+  max_seconds = 1.0D7 ,
+  pseudo_dir = './' ,
+  etot_conv_thr = 1.0D-5 ,
+  forc_conv_thr = 1.0D-3 ,
+  disk_io = 'none' ,
+/
+
+&SYSTEM
+  ecutwfc = 46 ,
+  ecutrho = 221 ,
+  occupations = 'smearing' ,
+  smearing = 'gaussian' ,
+  degauss = 1.0D-2 ,
+  ibrav = 0 ,
+  nat = xxx ,
+  ntyp = xxx ,
+/
+
+&ELECTRONS
+  electron_maxstep = 1000 ,
+  conv_thr = 1.0D-6 ,
+  diagonalization = 'cg' ,
+/
+
+&IONS
+  ion_dynamics = 'bfgs' ,
+  trust_radius_max = 0.5D0 ,
+/
+
+&CELL
+  press = xxx ,
+  press_conv_thr = 0.5D0 ,
+  cell_dynamics = 'bfgs' ,
+  cell_dofree = 'all' ,
+  cell_factor = 3.0 ,
+/
+
+ATOMIC_SPECIES
+ H 1.00784 H.pbe-rrkjus_psl.1.0.0.UPF
+

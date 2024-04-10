@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -eq 0 ]; then
+    echo 1>&2 "Usage: resdel <seeds>"
+    exit 127
+fi
+
+for var in "$@" ; do
+    if [ -f $var.res ]; then
+	sed -i "s/TITL $var /REMOVED $var /g" $var.res
+    else
+	grep -rlw $var . | xargs sed -i "s/TITL $var /REMOVED $var /g"
+    fi
+done
+
+exit 0

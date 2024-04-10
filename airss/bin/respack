@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 1 ]; then
+    echo 1>&2 "Usage: respack <seed>"
+    exit 127
+fi
+
+for f in $1-*.res ; do
+    cat $f >> $1.packed.res && rm -f $f
+done
+
+exit 0

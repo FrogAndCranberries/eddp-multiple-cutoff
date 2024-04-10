@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -ne 0 ]; then
+    echo 1>&2 "Usage: casteps2res"
+    exit 127
+fi
+
+for f in *.castep
+do
+        castep2res ${f%.*} > ${f%.*}.res &
+done
+
+exit 0

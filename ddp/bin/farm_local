@@ -1,0 +1,38 @@
+#!/bin/bash
+
+if [ $# -lt 1 ]; then
+    echo 'farm without a command'
+    exit 1
+fi
+
+if ls .farmpids* &>/dev/null; then
+    echo 'farm files detected - aborting ...'
+    exit 127
+fi
+
+command=$*
+ompnp=1
+seed="default-farm-seed"
+directory=`pwd`
+cd $directory
+
+while [ $# -gt 1 ] ; do
+    case $1 in
+	-ompnp) ompnp=$2 ; shift 2 ;;
+	-s) seed=$2 ; shift 2 ;;
+	*) shift 1 ;;
+    esac
+done
+
+rstrng=`tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 8 | head -n 1`
+echo $rstring
+
+for j in $(seq 1 $ompnp)
+do 
+
+    $command.$rstrng.$j < /dev/null > $seed.$rstrng.$j.out 2> $seed.$rstrng.$j.err & echo 'localhost' $! >> .farmpids.localhost.$j &
+
+done
+wait
+exit 0
+

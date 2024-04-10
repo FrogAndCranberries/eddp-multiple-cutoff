@@ -1,0 +1,191 @@
+#!/bin/bash
+
+set -e
+
+function usage {
+    echo "usage: $(basename $0) [-t temp] [-p press] [ -a natom] [-e nequil] [-m -nlong] [-n nsteps] [-s seed]" 2>&1
+    echo '  equilibrate and run molecular dynamics'
+    echo '   -t temp     target temperature'
+    echo '   -p press    target pressure'
+    echo '   -a natom    target number of atoms'
+    echo '   -e nequil   number of equilibration steps'
+    echo '   -m nlong    number of md steps'
+    echo '   -n nsteps   number of steps for running average'
+    echo '   -s seed     seedname'
+    exit 1
+}
+
+# Set defaults
+
+seed='unknown'
+press=0.0
+maxt=300.0
+natom=128
+nequil=3
+nshort=10000
+nlong=100000
+nsteps=100
+quench='false'
+
+optstring="t:p:a:e:m:n:qs:h"
+
+while getopts ${optstring} arg; do
+    case ${arg} in
+	t)
+	    maxt="${OPTARG}"
+	    ;;
+	p)
+	    press="${OPTARG}"
+	    ;;
+	a)
+	    natom="${OPTARG}"
+	    ;;
+	e)
+	    nequil="${OPTARG}"
+	    ;;
+	m)
+	    nlong="${OPTARG}"
+	    ;;
+	n)
+	    nsteps="${OPTARG}"
+	    ;;
+	q)
+	    quench="true"
+	    ;;
+	s)
+	    seed="${OPTARG}"
+	    ;;
+	h)
+	    usage
+	    ;;       
+	?)
+        echo "invalid option: -${OPTARG}."
+        echo
+        usage
+        ;;
+    esac
+done
+
+[[ ! -f $seed.cell ]] && ( echo $seed'.cell not found' ; exit 1 )
+
+echo '                                                      '
+echo '                                               $$\    '
+echo '                                               $$ |   '
+echo '        $$$$$$\   $$$$$$\  $$$$$$\$$$$\   $$$$$$$ |   '
+echo '       $$  __$$\ $$  __$$\ $$  _$$  _$$\ $$  __$$ |   '
+echo '       $$$$$$$$ |$$ |  \__|$$ / $$ / $$ |$$ /  $$ |   '
+echo '       $$   ____|$$ |      $$ | $$ | $$ |$$ |  $$ |   '
+echo '       \$$$$$$$\ $$ |      $$ | $$ | $$ |\$$$$$$$ |   '
+echo '        \_______|\__|      \__| \__| \__| \_______|   '
+echo '                                                      '
+echo '          equilibrate and run molecular dynamics      '
+echo '                                                      '
+echo '         author: Chris J. Pickard, Cambridge 2022     '
+echo '                                                      '
+echo '    summary of parameters - '
+echo
+echo "      temp:     "$maxt
+echo "      press:    "$press
+echo "      natom:    "$natom
+echo "      nequil:   "$nequil
+echo "      nlong:    "$nlong
+echo "      nsteps:   "$nsteps
+echo "      seed:     "$seed
+echo
+
+function prepare_cell {
+
+    oldcell=$1
+    newcell=$2
+
+    cp $oldcell $oldcell.temp
+    
+    cabal cell res < $oldcell.temp | cabal res res 0.01 | cabal res cell > $newcell
+
+    rm -f $oldcell.temp
+    
+}
+
+# First relax structure
+
+echo 'relaxing structure ...'
+
+prepare_cell $seed.cell $seed.cell 
+
+repose -p $press $seed &> /dev/null
+
+cp $seed.eddp $seed-eq.eddp
+cp $seed.eddp $seed-md.eddp
+
+# Equilibration - fixed cell
+
+rm -f $seed-all-run.xyze
+
+temp=0.0
+
+for ((i = 1 ; i <= $nequil ; i++))
+do
+
+    temp2=$temp
+    
+    temp=`echo "scale=2;$maxt/$nequil*$i" | bc -l`
+
+    echo 'fixed cell equilibration step '$i' at '$temp' K'
+    
+    prepare_cell $seed-out.cell $seed-eq.cell 
+
+    ramble -t -te 30 -ti $temp2 -tt $temp -natom $natom -ar 0.01 -f -m $nshort $seed-eq &> /dev/null
+
+    cat $seed-eq-run.xyze >> $seed-all-run.xyze
+    
+done
+
+# Equilibration - vary cell
+
+echo 'variable cell equilibration at '$press' GPa'
+
+prepare_cell $seed-eq-out.cell $seed-eq.cell 
+
+ramble -t -te 30 -tt $maxt -natom $natom -ar 0.01 -p $press -m $nshort $seed-eq &> /dev/null
+
+cat $seed-eq-run.xyze >> $seed-all-run.xyze
+
+# Long md run
+
+echo 'long run ...'
+
+prepare_cell $seed-eq-out.cell $seed-md.cell
+
+ramble -t -te 30 -n $nsteps -tt $maxt -natom $natom -p $press -m $nlong $seed-md
+
+cat $seed-md-run.xyze >> $seed-all-run.xyze
+
+
+# Quench
+
+temp=$maxt
+
+if [[ ${quench} == true  ]]
+then
+
+    cp $seed-md-out.cell $seed-qu.cell
+    cp $seed.eddp $seed-qu.eddp
+    
+    for ((i = 1 ; i <= $nequil ; i++))
+    do
+	
+	#temp=`echo "scale=2;$maxt/($nequil-0)*($nequil-$i+1)" | bc -l`
+	temp2=$temp
+	temp=`echo "scale=2;$temp/2" | bc -l`
+	
+	echo 'quench step '$i' at '$temp' K'
+	
+	prepare_cell $seed-qu.cell $seed-qu.cell 
+	
+	ramble -t -te 30 -n $nsteps -ti $temp2 -tt $temp -natom $natom -ar 0.001 -m $nshort $seed-qu &> /dev/null
+
+	cat $seed-qe-run.xyze >> $seed-all-run.xyze
+
+	
+    done
+fi

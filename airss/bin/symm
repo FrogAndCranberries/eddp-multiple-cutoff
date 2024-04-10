@@ -1,0 +1,33 @@
+#!/bin/bash
+
+if [ $# -eq 1 ]; then
+    mode="crystal"
+    file=$1
+elif [ $# -eq 2 ]; then
+    mode=$1
+    file=$2
+else
+    echo 'symm [-cl] <filename>'
+    exit 1
+fi
+
+if [ $mode == -cl ]; then
+
+    if command -v symmol &>/dev/null; then
+	cabal res xyz < $file > $file.xyz && csymm $file.xyz | head -1 | awk '{print "("$1")"}'
+	rm -f $file.xyz
+    else
+	echo '(n/a)'
+    fi
+    
+else
+    
+    if command -v cabal &>/dev/null; then
+	cabal res res 0.1 < $file | grep TITL | awk -F '(' '{print $2}' | awk -F ')' '{print $1}' | sed 's/_//g' | awk '{print "("$1")"}'
+    else
+       	echo '(n/a)'
+    fi
+    
+fi
+
+exit 0

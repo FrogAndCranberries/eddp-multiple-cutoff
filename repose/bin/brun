@@ -1,0 +1,26 @@
+#!/bin/bash
+
+rndstrng=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 7`
+
+buildcell < $1.cell > $1-$rndstrng.cell 2> /dev/null
+
+cp $1.eddp $1-$rndstrng.eddp
+
+repose `cat $1.par` $1-$rndstrng > $1-$rndstrng.repose 2> /dev/null
+
+volume=$(grep Volume $1-$rndstrng.repose | awk '{print $2}')
+pressure=$(grep Pressure $1-$rndstrng.repose | awk '{print $2}')
+energy=$(grep Energy $1-$rndstrng.repose | awk '{print $2}')
+enthalpy=$(grep Enthalpy $1-$rndstrng.repose | awk '{print $2}')
+nsteps=$(grep Converged $1-$rndstrng.repose | awk '{print $3}' ; grep after $1-$rndstrng.repose | awk '{print $5}')
+
+if [ -f $1-$rndstrng-out.cell ]
+then
+    symm=$(cabal cell res < $1-$rndstrng-out.cell | cabal res res | grep TITL | awk '{print $9}')
+    cabal cell res < $1-$rndstrng-out.cell | \
+	awk -v name="$1-$rndstrng" -v press="$pressure" -v enth="$enthalpy" -v symm="$symm" '/^TITL/ {$2=name;$3=press;$5=enth;$9=symm} {print}' | \
+	awk -v nsteps="$nsteps" '/^TITL/ { print; print "REM "nsteps" steps"; next }1' > $1-$rndstrng.res
+
+fi
+
+#rm -f $1-$rndstrng{.cell,-out.cell,.eddp,.ddp,.repose}

@@ -1,0 +1,243 @@
+@version 50109
+@default linewidth 1.5
+@g0 on
+@with g0
+@map font 4 to "Helvetica", "Helvetica"
+@    world xmin     0.000
+@    world xmax     1.000
+@    world ymin     0.000
+@    world ymax     1.000
+@    view xmin 0.150000
+@    view xmax 0.85
+@    view ymin 0.200000
+@    view ymax 0.900000
+@    xaxis  bar off
+@    xaxis  tick major off
+@    xaxis  tick minor off
+@    xaxis  tick major      0.10
+@    xaxis  label font 4
+@    xaxis  ticklabel off
+@    yaxis  bar off
+@    yaxis  tick major off
+@    yaxis  tick minor off
+@    yaxis  ticklabel off
+@    yaxis  tick major      0.20
+@    yaxis  label font 4
+@    yaxis  ticklabel font 4
+@    frame type 0
+@    frame linestyle 0
+@    s0 type xy
+@    s0 symbol 1
+@    s0 symbol size 0.7500000
+@    s0 symbol color 1
+@    s0 symbol pattern 1
+@    s0 symbol fill color 1
+@    s0 symbol fill pattern 1
+@    s0 line type 1
+@    s0 line linestyle 1
+@    s0 line linewidth 2.0
+@    s0 line color 1
+@    s1 type xy
+@    s1 symbol 1
+@    s1 symbol size 0.500000
+@    s1 symbol color 1
+@    s1 symbol pattern 1
+@    s1 symbol fill color 2
+@    s1 symbol fill pattern 1
+@    s1 line type 0
+@    s2 type xy
+@    s2 symbol 1
+@    s2 symbol size 0.300000
+@    s2 symbol color 2
+@    s2 symbol pattern 1
+@    s2 symbol fill color 2
+@    s2 symbol fill pattern 1
+@    s2 line type 0
+@target G0.S0
+@type xy
+0 0
+1 0
+0.5 0.8660254
+0 0
+&
+@target G0.S1
+@type xy
+   1.00000   0.00000
+   0.50000   0.00000
+   0.50000   0.86603
+   0.66667   0.00000
+   0.62500   0.21651
+   0.75000   0.43301
+   0.00000   0.00000
+   0.75000   0.00000
+   0.68750   0.32476
+   0.66667   0.28868
+   0.25000   0.43301
+   0.37500   0.64952
+&
+@target G0.S2
+@type xy
+     1.00000     0.00000
+     0.50000     0.00000
+     0.50000     0.00000
+     0.50000     0.86603
+     0.66667     0.00000
+     0.62500     0.21651
+     0.75000     0.43301
+     0.00000     0.00000
+     0.75000     0.00000
+     0.68750     0.32476
+     0.66667     0.28868
+     0.25000     0.43301
+     0.37500     0.64952
+&
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.88500
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   4 B P63/mmc"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.86000
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   1 BA Pm-3m"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.83500
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   4 C P63/mmc"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.81000
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   2 B2A C2/m"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.78500
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   1 CB2A Fm-3m"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.76000
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   1 CB Pm-3m"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.73500
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   2 A P63/mmc"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.71000
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   2 B3A P63/mmc"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.68500
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   1 C3B4A R-3m"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.66000
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   1 C2B3A P-3m1"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.63500
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   1 CA Pm-3m"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,   0.61000
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 0.7500000
+@    string def "   2 C3A Pmmn"
+@with string
+@    string on
+@    string loctype view
+@    string 0.12,0.15
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 1.0000000
+@    string def "A"
+@with string
+@    string on
+@    string loctype view
+@    string 0.875,0.15
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 1.0000000
+@    string def "B"
+@with string
+@    string on
+@    string loctype view
+@    string 0.49,0.85
+@    string color 1
+@    string rot 0
+@    string font 4
+@    string just 0
+@    string char size 1.0000000
+@    string def "C"

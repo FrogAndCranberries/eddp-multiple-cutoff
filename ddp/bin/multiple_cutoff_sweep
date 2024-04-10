@@ -1,0 +1,139 @@
+#!/bin/bash
+
+#-----------------------------------------------------
+
+# Grid search parameters
+reshuffle_data=false    # Reshuffling the structures between runs can introduce noise to the results
+num_body=3              # Highest order interaction considered, can be 3 or 4
+search_step=0.5         # Step between radii in angstrom
+min_2body=3.5           # Minimal 2-body cutoff tested
+max_2body=6.5           # Maximal 2-body cutoff tested
+min_3body=3.5
+max_3body=5.5
+min_4body=4.0
+max_4body=5.5
+
+#----------------------------------------------------
+
+# Set default parameters
+press=0.001
+deltae=10
+num_powers=5
+pmin=2
+pmax=10
+nnodes=5
+num_potentials=10
+
+# Seed specific parameters
+seed='Ar'
+comp='Ar H'
+
+# Define variables for list splitting
+
+ntot=`cryan -p $press -de $deltae -r < data.res 2> /dev/null | wc -l`
+
+let ntrain=$ntot*8/10
+let nvalid=($ntot-$ntrain)/2
+let ntest=$ntot-$ntrain-$nvalid
+
+let n1=1
+let n2=$ntrain
+let n3=$ntrain+1
+let n4=$ntrain+$nvalid
+let n5=$ntrain+$nvalid+1
+let n6=$ntrain+$nvalid+$ntest
+
+echo $n2 $n3 $n4 $n5 $n6
+
+# This is parallel, local version without spawn
+# Get processor core count
+let ompnp=(`getconf _NPROCESSORS_ONLN`+1)/2
+
+if [[ $ompnp -lt 1 ]]
+    then
+        let ompnp=1
+fi
+
+# Generate a common list of training structures if there is none or if we want to reshuffle data between runs
+
+if [ ! -e "list.franks" ] || [ "$reshuffle_data" = true ]; then
+    ca -p $press -de $deltae -l -r | shuf | awk '{print $1}' > list.franks
+fi
+
+# Function to return a portion of list.franks - from franks
+function cutlist {
+
+    let end=$2+1
+    sed -n "$1,$2p;$endq" list.franks
+
+}
+
+# Define the list of cutoff radii to explore - depreciated
+# radii_2body=(3.5 4.5 5.5)
+# radii_3body=(3.5 4.5 5.5)
+# radii_4body=(3.5 4.5 5.5)
+
+rm -r $seed-r-*
+
+# Run through all combinations of 2- and 3-body radii
+if [ "$num_body" -eq 3 ]; then
+    for rmax2 in `seq $min_2body $step $max_2body` ; do
+        for rmax3 in `seq $min_3body $step $max_3body`; do
+            echo rmax2: $rmax2 - rmax3: $rmax3 - nbody: 3
+
+            mkdir $seed-r-$rmax2-$rmax3-3body
+            cp ./$seed.cell ./$seed.param ./data.res ./list.franks ./$seed-r-$rmax2-$rmax3-3body/
+            cd $seed-r-$rmax2-$rmax3-3body
+            mkdir $seed
+
+            # Initialise other cutoff radii
+            rmax4=$rmax2
+            rmax5=$rmax2
+            highestrmax=$(printf "%s\n" "$rmax2" "$rmax3" "$rmax4" "$rmax5" | sort -n | tail -n 1)
+
+
+            cutlist $n1 $n2 | parallel -I% --progress "rescat % | frank_new -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $num_body -p $num_powers -pmin $pmin -pmax $pmax" > training
+            cutlist $n3 $n4 | parallel -I% --progress "rescat % | frank_new -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $num_body -p $num_powers -pmin $pmin -pmax $pmax" > testing
+            cutlist $n5 $n6 | parallel -I% --progress "rescat % | frank_new -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $num_body -p $num_powers -pmin $pmin -pmax $pmax" > validation
+
+            forge_new -ompnp $ompnp -es 10 -n 200 -nn $nnodes -np -q -numpot $num_potentials -s ./$seed/$seed > $seed-r-$rmax2-$rmax3-3body.log
+
+            ls $seed/$seed*.ddp | flock_new -ompnp $ompnp -p $meanpress -v -q > $seed.eddp
+
+            cd ..
+
+        done
+    done
+
+# Run through all combinations of 2- ,3-, and 4-body radii
+
+elif [ "$num_body" -eq 4 ]; then
+    # Loop through the list with three variables
+    for rmax2 in `seq $min_2body $step $max_2body` ; do
+        for rmax3 in `seq $min_3body $step $max_3body`; do
+            for rmax4 in `seq $min_4body $step $max_4body`; do
+                echo rmax2: $rmax2 - rmax3: $rmax3 - rmax4: $rmax4 - nbody: 4
+
+                mkdir $seed-r-$rmax2-$rmax3-$rmax4-4body
+                cp ./$seed.cell ./data.res ./$seed.param ./list.franks ./$seed-r-$rmax2-$rmax3-$rmax4-4body/
+                cd $seed-r-$rmax2-$rmax3-$rmax4-4body
+                mkdir $seed
+
+                # Initialise other cutoff radii
+                rmax5=$rmax2
+                highestrmax=$(printf "%s\n" "$rmax2" "$rmax3" "$rmax4" "$rmax5" | sort -n | tail -n 1)
+
+
+                cutlist $n1 $n2 | parallel -I% --progress "rescat % | frank_new -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $num_body -p $num_powers -pmin $pmin -pmax $pmax" > training
+                cutlist $n3 $n4 | parallel -I% --progress "rescat % | frank_new -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $num_body -p $num_powers -pmin $pmin -pmax $pmax" > testing
+                cutlist $n5 $n6 | parallel -I% --progress "rescat % | frank_new -c $comp -r $highestrmax $rmax2 $rmax3 $rmax4 $rmax5 -nb $num_body -p $num_powers -pmin $pmin -pmax $pmax" > validation
+
+                forge_new -ompnp $ompnp -es 10 -n 200 -nn $nnodes -np -q -numpot $num_potentials -s ./$seed/$seed > $seed-r-$rmax2-$rmax3-$rmax4-4body.log
+
+                ls $seed/$seed*.ddp | flock_new -ompnp $ompnp -p $press -v -q > $seed.eddp
+
+                cd ..
+            done
+        done
+    done
+fi

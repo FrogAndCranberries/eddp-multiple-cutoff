@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [ $# -lt 1 ]; then
+    echo 'comp2minsep <comp>'
+    exit 1
+fi
+
+name=`ca -l -de 0 -f $1 -r -t 1 2>/dev/null | awk '{print $1}'` && [ ! -z "$name" ] && rescat $name | cryan -g 2>/dev/null | grep -E 'MINSEP|TARGVOL'

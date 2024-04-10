@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [ $# -eq 0 ]; then
+    echo 1>&2 "Usage: rescat <seeds>"
+    exit 127
+fi
+
+for var in "$@" ; do
+    if [ -f $var.res ]; then
+	cat $var.res &
+    else
+	find . -name "*.res" 2> /dev/null | xargs cat 2> /dev/null | sed "/^TITL $var /,/~END/!d;/END/q"
+    fi
+done
+
+exit 0

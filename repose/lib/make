@@ -1,0 +1,20 @@
+# cleanup
+rm *.o *.so *.mod
+
+# compile fortran source files
+gfortran -c -fpic -cpp -g -fbacktrace \
+    ../../airss/external/spglib/spglib-1.14.1/example/spglib_f08.f90 \
+    ../../nn/src/nn.f90 \
+    ../src/constants.f90 \
+    ../src/rng.f90 \
+    ../src/cell.f90 \
+    ../src/ddp.f90
+
+# combine fortran source into library
+gfortran -shared -fpic -g -fbacktrace -o librepose.so librepose.f90 \
+    spglib_f08.o \
+    nn.o \
+    constants.o \
+    rng.o \
+    cell.o \
+    ddp.o

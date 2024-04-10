@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -e
+
+#########################
+# Test usage is correct #
+#########################
+
+if [[ $# -ne 0 ]]; then
+    echo 1>&2 "Usage: resname"
+    exit 127
+fi
+
+for f in *.res
+do
+
+    froot=`cryan -l -r < $f | awk '{print substr($1,1,index($1,"-"))$6"-"$7"-"$5}' | sed 's/\///g'`
+
+    if [[ ! "$f" =~ "$froot" ]] ;  then
+
+	fname="$froot-I"
+ 
+	while [[ -f "$f" ]]
+	do
+	    if [[ -f "$fname".res ]] ; then
+		fname=$fname"I"
+	    else
+		awk -v fn="$fname" '{if (NR==1) $2=fn; print}' $f > $fname.res && rm -f $f
+	    fi
+	done
+
+    fi
+    
+done
+
+exit 0

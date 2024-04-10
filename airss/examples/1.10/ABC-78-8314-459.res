@@ -1,0 +1,27 @@
+TITL ABC-78-8314-459 0.0000002684 18.1559537294 -31.6359941627 0 0  4 (Cm) n - 1
+REM
+REM Run started: at Fri Oct 6 14:25:38 BST 2023 in /home/michal/install/eddp/airss/examples/1.10
+REM pp3 from code version ## 0.9.3 July 2022 commit b0220bf5cbf550a3b7
+REM
+REM
+REM
+REM Total runtime: s
+REM
+REM
+REM ./ABC.cell (e32783a7be585090ebb5c77828425f51)
+REM ## AIRSS Version 0.9.3 July 2022 commit b0220bf5cbf550a3b7
+REM compiler GCC version 11.4.0
+REM options -cpp -imultiarch x86_64-linux-gnu -mtune=generic -march=x86-64 -g -Og -fpre-include=/usr/include/finclude/math-vector-fortran.h
+REM cmdline: airss.pl -pp3 -max 1000 -seed ABC 
+REM seed -1857628595 -737382648 261200456 676519062 1013239426 95062616 -1758129542 -1664015096
+REM
+REM ABC.pp (b4a81987505b5d62180816d9c6bc34eb)
+REM 
+CELL 1.54180    2.21974    2.94596    3.32823   63.94789   70.52033   90.00000
+LATT -1
+SFAC A  B  C  
+A      1  0.4305928903350  0.6894613482272  0.1181418461415 1.0
+B      2  0.1717358355780  0.8445987151177  0.6358559540436 1.0
+C      3  0.6514934119541  0.4011941334755  0.6763408010034 1.0
+C      3  0.8731328621330  0.1329474031796  0.2330618988115 1.0
+END

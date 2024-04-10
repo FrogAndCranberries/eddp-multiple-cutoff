@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -eq 0 ]; then
+    echo 1>&2 "Usage: res2dev <seeds>"
+    exit 127
+fi
+
+for seed in "$@" ; do
+
+ root=${seed%%-*}
+
+ cp $root.eddp $seed-deviation.eddp
+
+ cabal res cell < $seed.res > $seed-deviation.cell
+
+ repose -m 0 $seed-deviation 2>/dev/null| grep Deviation | awk -v seed=$seed '{print seed,$2}'
+
+ rm $seed-deviation*.*
+
+done
+
+exit 0
