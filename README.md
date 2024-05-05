@@ -1,6 +1,6 @@
-# Michal's ddp fork implementing separate cutoff radii for features by body order
+# Michal's fork of the Ephemeral Data Derived Potential library implementing separate cutoff radii for features by body order
 
-This improvement allows the user to introduce independent cutoff radii for 2-, 3-, and 4-body features used for EDDP training. The plot below shows the testing losses of EDDPs trained on Ar(H2)2 structures with various combinations of 2- and 3-body cutoffs. The hyperparameter grid search shows that a reduction in EDDP error can be achieved after uncoupling the radii.
+This version of the EDDP library (Developed by Materials Theory Group at MSM, University of Cambridge) allows the user to introduce independent cutoff radii for 2-, 3-, and 4-body features used for EDDP training. The plot below shows the testing losses of EDDPs trained on Ar(H2)2 structures with various combinations of 2- and 3-body cutoffs. The hyperparameter grid search shows that a reduction in EDDP error can be achieved after uncoupling the radii.
 
 ![Testing loss of Argon Hydride EDDP depending on training values of 2- and 3-body cutoffs](Loss_cutoff_radius_hyperparameter_search.png "Testing loss of Argon Hydride EDDP depending on training values of 2- and 3-body cutoffs")
 
