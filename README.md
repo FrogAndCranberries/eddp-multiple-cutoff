@@ -7,6 +7,8 @@ This version of the EDDP library (Developed by Materials Theory Group at MSM, Un
 Whenever an existing script was modified, the changes were made in a copy with a '_new' suffix, e.g. 'frank.f90' -> 'frank_new.f90'
 All makefiles were modified to compile these new script versions. The following scripts were changed or added:
 
+[Research poster available here](https://drive.google.com/file/d/1eOcq9DFOVh0wIw9kvxzmn9Mgw40Ehr56/view)
+
 ## ddp/src/frank_new - Modified frank code, main changes include:
 
 rmax variable changed from real to a real(5) array where:
